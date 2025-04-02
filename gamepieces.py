@@ -1,55 +1,59 @@
-# creating obstacle and game piece classes that the player can use/dodge
-
+"""Creating obstacle and game piece classes that the player can use/dodge"""
 __version__ = '04/02/2025'
 __author__ = 'Kayla Cao'
 
 import pygame
-import random
 
-class Laser(pygame.sprite.Sprite):
-    def __init__(self, x, y, width, height, active_duration=60, inactive_duration=60):
-        super().__init__()
-
-        # Laser surface (vertical)
-        self.active_image = pygame.Surface([width, height])
-        self.active_image.fill((255, 0, 0))  # Bright red when active
-
-        self.inactive_image = pygame.Surface([width, height])
-        self.inactive_image.fill((25, 0, 0))  # Dark red when inactive
-
-        # Initial state
-        self.image = self.active_image
+class GamePiece(pygame.sprite.Sprite):
+    """Parent class for all game pieces"""
+    def __init__(self, x, y, width, height, color):
+        '''initialization'''
+        pygame.sprite.Sprite.__init__(self)
+        self.image = pygame.Surface([width, height])
+        self.image.fill(color)
         self.rect = self.image.get_rect()
         self.rect.x = x
         self.rect.y = y
 
-        # Timing parameters
-        self.active_duration = active_duration  # Frames active
-        self.inactive_duration = inactive_duration  # Frames inactive
+class Laser(GamePiece):
+    """class for a laser that flashes on and off"""
+    def __init__(self, x, y, width, height, active_duration=60, inactive_duration=60):
+        '''initialization'''
+        # Bright red when active
+        super().__init__(x, y, width, height, color=(255, 0, 0))
+
+        # Additional laser-specific attributes
+        self.active_image = pygame.Surface([width, height])
+        self.active_image.fill((255, 0, 0))
+
+        self.inactive_image = pygame.Surface([width, height])
+        self.inactive_image.fill((25, 0, 0))
+
+        self.active_duration = active_duration
+        self.inactive_duration = inactive_duration
         self.timer = 0
         self.is_active = True
 
     def update(self):
-        # Increment timer
+        '''updates the laer'''
         self.timer += 1
 
-        # Toggle between active and inactive states
         if self.is_active and self.timer > self.active_duration:
-            # Switch to inactive
             self.is_active = False
             self.timer = 0
             self.image = self.inactive_image
 
         elif not self.is_active and self.timer > self.inactive_duration:
-            # Switch to active
             self.is_active = True
             self.timer = 0
             self.image = self.active_image
 
-
-class Spike(pygame.sprite.Sprite):
+class Spike(GamePiece):
+    """class for a spike"""
     def __init__(self, x, y, width, height, orientation='up'):
-        super().__init__()
+        """initialization"""
+        # Gray color for spikes
+        super().__init__(x, y, width, height, color=(100, 100, 100))
 
         # Create a surface with per-pixel alpha (transparency)
         self.image = pygame.Surface([width, height], pygame.SRCALPHA)
@@ -95,17 +99,11 @@ class Spike(pygame.sprite.Sprite):
         self.rect.x = x
         self.rect.y = y
 
-
 class MovingSpike(Spike):
+    """class for a spike that attaches to moving platforms"""
     def __init__(self, platform, orientation='up', width=None, height=20):
-        """
-        Create a spike that moves with a specific platform
+        '''initialization'''
 
-        :param platform: The platform this spike will be attached to
-        :param orientation: 'up', 'down', 'left', or 'right'
-        :param width: Width of the spike. Defaults to platform width if not specified
-        :param height: Height of the spike
-        """
         # Use platform width if no width specified
         if width is None:
             width = platform.rect.width
@@ -133,68 +131,44 @@ class MovingSpike(Spike):
             self.rect.left = self.platform.rect.right
             self.rect.centery = self.platform.rect.centery
 
-
-class Gold(pygame.sprite.Sprite):
+class Gold(GamePiece):
+    """class for a collectible gold piece"""
     def __init__(self, x, y, width, height):
-        super().__init__()
-        self.image = pygame.Surface([width, height])
-        self.image.fill((255, 215, 0))  # Gold color
-        self.rect = self.image.get_rect()
-        self.rect.x = x
-        self.rect.y = y
+        """initialization"""
+        super().__init__(x, y, width, height, color=(255, 215, 0))
 
-
-class Bouncepad(pygame.sprite.Sprite):
+class Bouncepad(GamePiece):
+    """class for a bouncepad"""
     def __init__(self, x, y, width, height, bounce_strength=-18):
-        super().__init__()
-        self.image = pygame.Surface([width, height])
-        self.image.fill((255, 0, 225))  # Bright pink color
-        self.rect = self.image.get_rect()
-        self.rect.x = x
-        self.rect.y = y
-        self.bounce_strength = bounce_strength  # How high the player bounces
+        """initialization"""
+        super().__init__(x, y, width, height, color=(255, 0, 225))
+        self.bounce_strength = bounce_strength
 
-
-class Enemy(pygame.sprite.Sprite):
-    """ Enemy that patrols a certain area. If you touch it, you lose a life """
-
+class Enemy(GamePiece):
+    """class for an enemy that moves in a specified boundary"""
     def __init__(self, x, y, width, height, boundary1, boundary2, speed, move_type):
-        super().__init__()
-        self.image = pygame.Surface([width, height])
-        self.image.fill((0, 0, 255))  # Blue color for enemies
-        self.rect = self.image.get_rect()
+        """initialization"""
+        super().__init__(x, y, width, height, color=(0, 0, 255))
 
         self.move_type = move_type
         self.speed = speed
-
-        # For vertical movement
         self.top_boundary = min(boundary1, boundary2)
         self.bottom_boundary = max(boundary1, boundary2)
-
-        # For horizontal movement
         self.left_boundary = min(boundary1, boundary2)
         self.right_boundary = max(boundary1, boundary2)
 
         self.player = None
         self.level = None
-        self.rect.x = x
-        self.rect.y = y
 
     def update(self):
-        """ Move the enemy """
+        """updates the enemy"""
         if self.move_type == 'horizontal':
-            # Move left/right
             self.rect.x += self.speed
-
-            # Check boundaries considering world shift
             cur_pos = self.rect.x - self.level.world_shift
             if cur_pos <= self.left_boundary or cur_pos >= self.right_boundary:
                 self.speed *= -1
 
         elif self.move_type == 'vertical':
-            # Move up/down
             self.rect.y += self.speed
-
-            # Check the boundaries and see if we need to reverse direction
             if self.rect.top <= self.top_boundary or self.rect.bottom >= self.bottom_boundary:
                 self.speed *= -1

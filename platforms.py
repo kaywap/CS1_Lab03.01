@@ -1,78 +1,76 @@
+"""Creating platform classes that the player stands on"""
+__version__ = '04/02/2025'
+__author__ = 'Kayla Cao'
+
 import pygame
 
 class Platform(pygame.sprite.Sprite):
     """ Platform the user can jump on """
 
     def __init__(self, width, height):
-        """ Platform constructor. Assumes constructed with user passing in
-            an array of 5 numbers like what's defined at the top of this code.
-            """
+        """ Platform constructor."""
         super().__init__()
 
         self.image = pygame.Surface([width, height])
-        self.image.fill((0, 255, 0)) #green
+        self.image.fill((0, 225, 0)) #green
 
         self.rect = self.image.get_rect()
 
 class MovingPlatform(Platform):
     """ This is a fancier platform that can actually move. """
-    change_x = 0
-    change_y = 0
 
-    boundary_top = 0
-    boundary_bottom = 0
-    boundary_left = 0
-    boundary_right = 0
+    def __init__(self, x, y, width, height, boundary1, boundary2, speed, move_type):
+        """initialization"""
+        super().__init__(width, height)
+        self.move_type = move_type
+        self.speed = speed
 
-    player = None
+        # Vertical boundaries
+        self.top_boundary = min(boundary1, boundary2)
+        self.bottom_boundary = max(boundary1, boundary2)
 
-    level = None
+        # Horizontal boundaries
+        self.left_boundary = min(boundary1, boundary2)
+        self.right_boundary = max(boundary1, boundary2)
+
+        self.player = None
+        self.level = None
+        self.rect.x = x
+        self.rect.y = y
 
     def update(self):
-        """ Move the platform.
-            If the player is in the way, it will shove the player
-            out of the way. This does NOT handle what happens if a
-            platform shoves a player into another object. Make sure
-            moving platforms have clearance to push the player around
-            or add code to handle what happens if they don't. """
+        """ Move the platform. """
+        if self.move_type == 'horizontal':
+            # Move left/right
+            self.rect.x += self.speed
 
-        # Move left/right
-        self.rect.x += self.change_x
+            # See if we hit the player
+            hit = pygame.sprite.collide_rect(self, self.player)
+            if hit:
+                if self.speed < 0:
+                    self.player.rect.right = self.rect.left
+                else:
+                    self.player.rect.left = self.rect.right
 
-        # See if we hit the player
-        hit = pygame.sprite.collide_rect(self, self.player)
-        if hit:
-            # We did hit the player. Shove the player around and
-            # assume he/she won't hit anything else.
+            # Check horizontal boundaries
+            cur_pos = self.rect.x - self.level.world_shift
+            if cur_pos < self.left_boundary or cur_pos > self.right_boundary:
+                self.speed *= -1
 
-            # If we are moving right, set our right side
-            # to the left side of the item we hit
-            if self.change_x < 0:
-                self.player.rect.right = self.rect.left
-            else:
-                # Otherwise if we are moving left, do the opposite.
-                self.player.rect.left = self.rect.right
+        elif self.move_type == 'vertical':
+            # Move up/down
+            self.rect.y += self.speed
 
-        # Move up/down
-        self.rect.y += self.change_y
+            # See if we hit the player
+            hit = pygame.sprite.collide_rect(self, self.player)
+            if hit:
+                if self.speed < 0:
+                    # Platform moving up
+                    self.player.rect.bottom = self.rect.top
+                else:
+                    # Platform moving down
+                    self.player.rect.top = self.rect.bottom
 
-        # Check and see if we the player
-        hit = pygame.sprite.collide_rect(self, self.player)
-        if hit:
-            # We did hit the player. Shove the player around and
-            # assume he/she won't hit anything else.
-
-            # Reset our position based on the top/bottom of the object.
-            if self.change_y < 0:
-                self.player.rect.bottom = self.rect.top
-            else:
-                self.player.rect.top = self.rect.bottom
-
-        # Check the boundaries and see if we need to reverse
-        # direction.
-        if self.rect.bottom > self.boundary_bottom or self.rect.top < self.boundary_top:
-            self.change_y *= -1
-
-        cur_pos = self.rect.x - self.level.world_shift
-        if cur_pos < self.boundary_left or cur_pos > self.boundary_right:
-            self.change_x *= -1
+            # Check vertical boundaries
+            if self.rect.bottom > self.bottom_boundary or self.rect.top < self.top_boundary:
+                self.speed *= -1
